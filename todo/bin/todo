@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+# Sample run:
+# bundle exec bin/todo -f ~/todo.txt add -p 5 -f "A new task" "Another task"
+
+require 'gli'
+require 'todo/commands'
+include GLI::App
+
+program_desc 'A simple todo app with ability to add & list todos and mark them as done'
+
+version Todo::VERSION
+
+subcommand_option_handling :normal
+arguments :strict
+
+desc 'Path to the todo file'
+default_value "#{ENV['HOME']}/todo.txt"
+arg_name 'todo_file'
+flag [:f,:filename]
+
+desc 'be verbose'
+switch [:v, :verbosity]
+
+
+desc 'Add a new task to our todo'
+arg_name 'task_name'
+command :add do |c|
+  c.action do |global_options,options,args|
+    args.each do |task| 
+        Todo::Commands.add_task(global_options[:f], task) 
+        puts "#{task} added" if global_options[:v]
+    end
+  end
+end
+
+desc 'List tasks'
+arg_name ''
+command :list do |c|
+  c.switch [:csv]
+  c.action do |global_options,options,args|
+    unless File.file?(global_options[:f])
+        raise "Database file #{global_options[:f]} does not exist" 
+    end
+    format = options[:csv] ? :csv : :tabular
+    Todo::Commands.list_tasks(global_options[:f], format)
+  end
+end
+
+desc 'Mark a task as complete'
+arg_name 'task_number'
+command :complete do |c|
+  c.action do |global_options,options,args|
+      args.each do |task_number|
+        Todo::Commands.mark_complete(global_options[:f], task_number.to_i)
+      end
+  end
+end
+
+pre do |global,command,options,args|
+  # Pre logic here
+  # Return true to proceed; false to abort and not call the
+  # chosen command
+  # Use skips_pre before a command to skip this block
+  # on that command only
+  true
+end
+
+post do |global,command,options,args|
+  # Post logic here
+  # Use skips_post before a command to skip this
+  # block on that command only
+end
+
+on_error do |exception|
+  # Error logic here
+  # return false to skip default error handling
+  true
+end
+
+exit run(ARGV)
